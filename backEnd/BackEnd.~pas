@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls;
+  Dialogs, StdCtrls, registry;
 
 type
   TForm1 = class(TForm)
@@ -24,19 +24,29 @@ implementation
 
 {$R *.dfm}
 
-function getHWInfo () : String; external 'HardwareInfo.dll';
+function getHWInfo () : Pchar; external 'HardwareInfo.dll';
 //function EncryptString (Value: PChar; Key: PChar;
 //  KeyBit: TKeyBit = kb128): PChar; stdcall; external 'AESDLL.dll';
 
 procedure TForm1.FormCreate(Sender: TObject);
 var
-  key: String;
   //criptValue: Pchar;
+  Registry: TRegistry;
+  license: String;
 begin
   //key := 'test';
   //criptValue := EncryptString(pansichar(Trim(getHWInfo())), pansichar(key));
   HWInfo.Clear();
   HWInfo.Lines.Add(getHWInfo());
+
+   Registry := TRegistry.Create;
+   Registry.RootKey := hkey_current_user;
+   Registry.OpenKey('software\HWD',true);
+   if Registry.KeyExists('license') then
+    license := Registry.ReadString('license')
+   else Registry.WriteString('license', 'test');
+   Registry.CloseKey;
+   Registry.Free;
 end;
 
 end.
