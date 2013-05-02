@@ -14,7 +14,13 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Dialogs,
   StdCtrls, md5, hddId, registry;
 
+type
+  TKeyBit= (kb128, kb192, kb256);
+
 {$R *.res}
+
+function EncryptString (Value: PChar; Key: PChar;
+  KeyBit: TKeyBit = kb128): PChar; stdcall; external 'AESDLL.dll';
 
 {Getting computer name}
 function _getComputerName: String;
@@ -51,14 +57,22 @@ begin
 end;
 
 {concatenate hardware unique info}
-function convertHashToPchar (hashArray: MD5Digest) : PChar;
+function convertHashToPchar (hashArray: MD5Digest) : String;
 var
   i: integer;
   c: String;
 begin
   for  i := 0 to Length(hashArray) - 1 do
     c := c + IntToHex(hashArray[i], 2);
-  Result := PAnsiChar(c);
+  Result := c;
+end;
+
+function cript (encValue: PAnsiChar) : Pchar;
+var
+  key: PAnsiChar;
+begin
+  key := 'test';
+  Result := EncryptString(encValue, key);
 end;
 
 {getting HardWare info}
@@ -67,7 +81,9 @@ var
   HWInfo: String;
 begin
   HWInfo := Trim(concatHWInfo(_getComputerName(), getHddId(), _getUserName()));
-  Result := convertHashToPchar(md5String(HWInfo));
+  HWInfo := convertHashToPchar(md5String(HWInfo));
+  SetLength(HWInfo, 32);
+  Result := PAnsiChar(HWInfo);
 end;
 
 {exported function}
@@ -79,7 +95,7 @@ begin
   Registry := TRegistry.Create;
   Registry.RootKey := hkey_current_user;
   Result := Registry.OpenKey('software\HWD',true);
-  Registry.WriteExpandString('license', license);
+  Registry.WriteString('license', license);
   Registry.CloseKey;
   Registry.Free;
 end;
@@ -89,20 +105,18 @@ function init () : PChar;
 var
   Registry: TRegistry;
   p: string;
-  c: Pchar;
 begin
-  c := getHWInfo();
   Registry := TRegistry.Create;
   Registry.RootKey := hkey_current_user;
   Registry.OpenKey('software\HWD',true);
   if Registry.ValueExists('license') then
   begin
     p := StringReplace(Registry.ReadString('license'), #13#10, '', [rfReplaceAll]);
-    if AnsiSameText(p, string(c)) then
+    if AnsiSameText(p, string(cript(getHWInfo()))) then
       Result := PAnsiChar('')
-    else Result := c
+    else Result := getHWInfo()
   end
-  else Result := c;
+  else Result := getHWInfo();
   Registry.CloseKey;
   Registry.Free;
 end;
