@@ -12,7 +12,7 @@ library HardwareInfo;
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Dialogs,
-  StdCtrls, md5, hddId;
+  StdCtrls, md5, hddId, registry;
 
 {$R *.res}
 
@@ -50,19 +50,19 @@ begin
   Result := hddInfo + '-' + compName + '-' + userName;
 end;
 
-function convertHashToPchar (hashArray: MD5Digest) : Pchar;
+{concatenate hardware unique info}
+function convertHashToPchar (hashArray: MD5Digest) : PChar;
 var
   i: integer;
   c: String;
 begin
   for  i := 0 to Length(hashArray) - 1 do
     c := c + IntToHex(hashArray[i], 2);
-  Result := pansichar(c);
+  Result := PAnsiChar(c);
 end;
 
-{exported function
-getting HardWare info}
-function getHWInfo () : Pchar;
+{getting HardWare info}
+function getHWInfo () : PChar;
 var
   HWInfo: String;
 begin
@@ -70,7 +70,44 @@ begin
   Result := convertHashToPchar(md5String(HWInfo));
 end;
 
-exports getHWInfo;
+{exported function}
+{allow user to set license}
+function setLicense (license: Pchar) : Boolean;
+var
+  Registry: TRegistry;
+begin
+  Registry := TRegistry.Create;
+  Registry.RootKey := hkey_current_user;
+  Result := Registry.OpenKey('software\HWD',true);
+  Registry.WriteExpandString('license', license);
+  Registry.CloseKey;
+  Registry.Free;
+end;
+
+{controller}
+function init () : PChar;
+var
+  Registry: TRegistry;
+  p: string;
+  c: Pchar;
+begin
+  c := getHWInfo();
+  Registry := TRegistry.Create;
+  Registry.RootKey := hkey_current_user;
+  Registry.OpenKey('software\HWD',true);
+  if Registry.ValueExists('license') then
+  begin
+    p := StringReplace(Registry.ReadString('license'), #13#10, '', [rfReplaceAll]);
+    if AnsiSameText(p, string(getHWInfo())) then
+      Result := PAnsiChar('')
+    else Result := getHWInfo()
+  end
+  else Result := getHWInfo();
+  Registry.CloseKey;
+  Registry.Free;
+end;
+
+exports init, setLicense;
 
 begin
 end.

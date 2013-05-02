@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 192
   Top = 124
   Width = 928
-  Height = 480
+  Height = 481
   Caption = 'Form1'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -22,5 +22,23 @@ object Form1: TForm1
     Lines.Strings = (
       'HWInfo')
     TabOrder = 0
+  end
+  object addLicense: TMemo
+    Left = 24
+    Top = 152
+    Width = 185
+    Height = 89
+    Lines.Strings = (
+      'addLicense')
+    TabOrder = 1
+  end
+  object Button1: TButton
+    Left = 24
+    Top = 256
+    Width = 185
+    Height = 25
+    Caption = 'add license'
+    TabOrder = 2
+    OnClick = Button1Click
   end
 end

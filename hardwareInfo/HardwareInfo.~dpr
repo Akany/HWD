@@ -12,135 +12,9 @@ library HardwareInfo;
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Dialogs,
-  StdCtrls, md5;
+  StdCtrls, md5, hddId, registry;
 
 {$R *.res}
-
-{getting HDD serial number}
-const
-  SMART_GET_VERSION = $074080;
-  SMART_SEND_DRIVE_COMMAND = $07C084;
-  SMART_RCV_DRIVE_DATA = $07C088;
-  // Values of ds_bDriverError
-  DRVERR_NO_ERROR = 0;
-  DRVERR_IDE_ERROR = 1;
-  DRVERR_INVALID_FLAG = 2;
-  DRVERR_INVALID_COMMAND = 3;
-  DRVERR_INVALID_BUFFER = 4;
-  DRVERR_INVALID_DRIVE = 5;
-  DRVERR_INVALID_IOCTL = 6;
-  DRVERR_ERROR_NO_MEM = 7;
-  DRVERR_INVALID_REGISTER = 8;
-  DRVERR_NOT_SUPPORTED = 9;
-  DRVERR_NO_IDE_DEVICE = 10;
-  // Values of ir_bCommandReg
-  ATAPI_ID_CMD = $A1;
-  ID_CMD = $EC;
-  SMART_CMD = $B0;
-
-type
-  TIdeRegs	= packed record
-    bFeaturesReg,
-    bSectorCountReg,
-    bSectorNumberReg,
-    bCylLowReg,
-    bCylHighReg,
-    bDriveHeadReg,
-    bCommandReg,
-    bReserved	: Byte;
-  end;
-
-  TDriverStatus = packed record
-    bDriverError: Byte;
-    bIDEError: Byte;
-    bReserved: array[1..2] of Byte;
-    dwReserved: array[1..2] of DWORD;
-  end;
-
-  TSendCmdInParams = packed record
-    dwBufferSize: DWORD;
-    irDriveRegs: TIdeRegs;
-    bDriveNumber: Byte;
-    bReserved: array[1..3] of Byte;
-    dwReserved: array[1..4] of DWORD;
-    bBuffer: Byte;
-  end;
-
-  TSendCmdOutParams = packed record
-    dwBufferSize: DWORD;
-    dsDriverStatus: TDriverStatus;
-    bBuffer: array[1..512] of Byte;
-  end;
-
-  TGetVersionInParams = packed record
-    bVersion,
-    bRevision,
-    bReserved,
-    bIDEDeviceMap: Byte;
-    dwCapabilities: DWORD;
-    dwReserved: array[1..4] of DWORD;
-  end;
-
-procedure CorrectDevInfo(var _params: TSendCmdOutParams);
-asm
-  lea   edi, _params.bBuffer
-  add   edi, 14h
-  mov   ecx, 0Ah
-
-@@SerNumLoop:
-
-  mov   ax, [edi]
-  xchg  al, ah
-  stosw
-  loop  @@SerNumLoop
-  add   edi, 6
-  mov   cl, 18h
-
-@@ModelNumLoop:
-
-  mov   ax, [edi]
-  xchg  al, ah
-  stosw
-  loop  @@ModelNumLoop
-end;
-
-function getHddId() : String;
-var
-  tmp  : String;
-  dev  : THandle;
-  scip : TSendCmdInParams;
-  scop : TSendCmdOutParams;
-  gvip : TGetVersionInParams;
-  ret  : DWORD;
-begin
-  dev := CreateFile('\\.\PhysicalDrive0', GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, nil, OPEN_EXISTING, 0, 0);
-  if dev <> INVALID_HANDLE_VALUE then
-  begin
-    if DeviceIoControl(dev, SMART_GET_VERSION, nil, 0, @gvip, SizeOf(gvip), ret, nil) then
-    begin
-      scip.dwBufferSize := 512;
-      scip.bDriveNumber := 0;
-      scip.irDriveRegs.bSectorCountReg := 1;
-      scip.irDriveRegs.bSectorNumberReg := 1;
-      scip.irDriveRegs.bDriveHeadReg := $A0;
-      scip.irDriveRegs.bCommandReg := ID_CMD;
-      if not DeviceIoControl(dev, SMART_RCV_DRIVE_DATA, @scip, SizeOf(scip), @scop, SizeOf(scop), ret, nil) then
-        Result := SysErrorMessage(GetLastError)
-      else if scop.dsDriverStatus.bDriverError = DRVERR_NO_ERROR then
-      begin
-        CorrectDevInfo(scop);
-        SetLength(tmp, 20);
-        Move(scop.bBuffer[21], tmp[1], 20);
-        Result := tmp;
-      end
-      else
-        Result := SysErrorMessage(GetLastError)
-    end
-    else
-      Result := SysErrorMessage(GetLastError);
-    CloseHandle(dev);
-  end;
-end;
 
 {Getting computer name}
 function _getComputerName: String;
@@ -176,19 +50,19 @@ begin
   Result := hddInfo + '-' + compName + '-' + userName;
 end;
 
-function convertHashToPchar (hashArray: MD5Digest) : Pchar;
+{concatenate hardware unique info}
+function convertHashToPchar (hashArray: MD5Digest) : PChar;
 var
   i: integer;
   c: String;
 begin
   for  i := 0 to Length(hashArray) - 1 do
     c := c + IntToHex(hashArray[i], 2);
-  Result := pansichar(c);
+  Result := PAnsiChar(c);
 end;
 
-{exported function
-getting HardWare info}
-function getHWInfo () : Pchar;
+{getting HardWare info}
+function getHWInfo () : PChar;
 var
   HWInfo: String;
 begin
@@ -196,7 +70,44 @@ begin
   Result := convertHashToPchar(md5String(HWInfo));
 end;
 
-exports getHWInfo;
+{exported function}
+{allow user to set license}
+function setLicense (license: Pchar) : Boolean;
+var
+  Registry: TRegistry;
+begin
+  Registry := TRegistry.Create;
+  Registry.RootKey := hkey_current_user;
+  Result := Registry.OpenKey('software\HWD',true);
+  Registry.WriteExpandString('license', license);
+  Registry.CloseKey;
+  Registry.Free;
+end;
+
+{controller}
+function init () : PChar;
+var
+  Registry: TRegistry;
+  p: string;
+  c: Pchar;
+begin
+  c := getHWInfo();
+  Registry := TRegistry.Create;
+  Registry.RootKey := hkey_current_user;
+  Registry.OpenKey('software\HWD',true);
+  if Registry.ValueExists('license') then
+  begin
+    p := StringReplace(Registry.ReadString('license'), #13#10, '', [rfReplaceAll]);
+    if AnsiSameText(p, string(c)) then
+      Result := PAnsiChar('')
+    else Result := c
+  end
+  else Result := c;
+  Registry.CloseKey;
+  Registry.Free;
+end;
+
+exports init, setLicense;
 
 begin
 end.

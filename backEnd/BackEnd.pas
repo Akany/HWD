@@ -9,7 +9,10 @@ uses
 type
   TForm1 = class(TForm)
     HWInfo: TMemo;
+    addLicense: TMemo;
+    Button1: TButton;
     procedure FormCreate(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -24,29 +27,28 @@ implementation
 
 {$R *.dfm}
 
-function getHWInfo () : Pchar; external 'HardwareInfo.dll';
+function init () : Pchar; external 'HardwareInfo.dll';
+function setLicense (license: Pchar) : Boolean; external 'HardwareInfo.dll';
 //function EncryptString (Value: PChar; Key: PChar;
 //  KeyBit: TKeyBit = kb128): PChar; stdcall; external 'AESDLL.dll';
 
 procedure TForm1.FormCreate(Sender: TObject);
 var
   //criptValue: Pchar;
-  Registry: TRegistry;
-  license: String;
+  msg: string;
 begin
   //key := 'test';
   //criptValue := EncryptString(pansichar(Trim(getHWInfo())), pansichar(key));
   HWInfo.Clear();
-  HWInfo.Lines.Add(getHWInfo());
+  msg := string(init());
+  if (msg = '') then msg := 'The license is ok!';
+  HWInfo.Lines.Add(msg);
+end;
 
-   Registry := TRegistry.Create;
-   Registry.RootKey := hkey_current_user;
-   Registry.OpenKey('software\HWD',true);
-   if Registry.ValueExists('license') then
-    license := Registry.ReadString('license')
-   else Registry.WriteString('license', 'test');
-   Registry.CloseKey;
-   Registry.Free;
+procedure TForm1.Button1Click(Sender: TObject);
+begin
+  setLicense(addLicense.Lines.GetText());
+  ShowMessage('Restart application');
 end;
 
 end.
