@@ -19,8 +19,8 @@ type
 
 {$R *.res}
 
-function EncryptString (Value: PChar; Key: PChar;
-  KeyBit: TKeyBit = kb128): PChar; stdcall; external 'AESDLL.dll';
+function encode (const source: pchar; var out: pchar): boolean; external 'Rijndael.dll';
+function decode (const source: pchar; var out: pchar): boolean; external 'Rijndael.dll';
 
 {Getting computer name}
 function _getComputerName: String;
@@ -67,12 +67,16 @@ begin
   Result := c;
 end;
 
-function cript (encValue: PAnsiChar) : Pchar;
+function HexToStr(Value: string): string;
 var
-  key: PAnsiChar;
+  I: Integer;
 begin
-  key := 'test';
-  Result := EncryptString(encValue, key);
+  Result := '';
+  for I := 1 to Length(Value) do
+  begin
+    if ((I mod 2) = 1) then
+      Result := Result + Chr(StrToInt('0x'+ Copy(Value, I, 2)));
+  end;
 end;
 
 {getting HardWare info}
@@ -101,25 +105,35 @@ begin
 end;
 
 {controller}
-function init () : PChar;
+function init () : pchar; stdcall;
 var
   Registry: TRegistry;
-  p: string;
+  license, p, date: pchar;
+//  date: string;
 begin
   Registry := TRegistry.Create;
   Registry.RootKey := hkey_current_user;
   Registry.OpenKey('software\HWD',true);
   if Registry.ValueExists('license') then
   begin
-    p := StringReplace(Registry.ReadString('license'), #13#10, '', [rfReplaceAll]);
-    if AnsiSameText(p, string(cript(getHWInfo()))) then
-      Result := PAnsiChar('')
-    else Result := getHWInfo()
+    //p := StringReplace(Registry.ReadString('license'), #13#10, '', [rfReplaceAll]);
+    p := pchar(Registry.ReadString('license'));
+    p[32] := #0;
+    encode(getHWInfo(), license);
+    if AnsiSameText(string(p), string(license)) then
+      result := pchar('')
+    else result := getHWInfo()
   end
-  else Result := getHWInfo();
+  else result := getHWInfo();
   Registry.CloseKey;
   Registry.Free;
+  //decode(p, p);
+  //result := date;
 end;
+
+//  encode(license, license);
+//  out := pchar(copy(license, 1, length(license)));
+//  decode(out, out);
 
 exports init, setLicense;
 

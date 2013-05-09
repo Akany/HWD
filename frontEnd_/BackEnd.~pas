@@ -27,28 +27,26 @@ implementation
 
 {$R *.dfm}
 
-function init () : Pchar; external 'HardwareInfo.dll';
+function init () : pchar; stdcall; external 'HardwareInfo.dll';
 function setLicense (license: Pchar) : Boolean; external 'HardwareInfo.dll';
-//function EncryptString (Value: PChar; Key: PChar;
-//  KeyBit: TKeyBit = kb128): PChar; stdcall; external 'AESDLL.dll';
 
 procedure TForm1.FormCreate(Sender: TObject);
 var
-  //criptValue: Pchar;
-  msg: string;
+  msg: pchar;
 begin
-  //key := 'test';
-  //criptValue := EncryptString(pansichar(Trim(getHWInfo())), pansichar(key));
-  HWInfo.Clear();
   msg := string(init());
-  if (msg = '') then msg := 'The license is ok!';
-  HWInfo.Lines.Add(msg);
+  if (msg <> '') then
+  begin
+    HWInfo.Clear();
+    HWInfo.Lines.Add(msg);
+  end;
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
   setLicense(addLicense.Lines.GetText());
-  ShowMessage('Restart application');
+  ShowMessage('Приложение необходимо перезапустить');
+  Form1.Close;
 end;
 
 end.
