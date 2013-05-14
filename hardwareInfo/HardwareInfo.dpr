@@ -12,7 +12,7 @@ library HardwareInfo;
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Dialogs,
-  StdCtrls, md5, hddId, registry;
+  StdCtrls, md5, hddId, registry, DateUtils;
 
 type
   TKeyBit= (kb128, kb192, kb256);
@@ -104,36 +104,71 @@ begin
   Registry.Free;
 end;
 
+procedure Split(Delimiter: Char; Str: string; ListOfStrings: TStrings) ;
+begin
+   ListOfStrings.Clear;
+   ListOfStrings.Delimiter     := Delimiter;
+   ListOfStrings.DelimitedText := Str;
+end;
+
+function _compareDate(license: string) : integer;
+var
+  endDateStr: TStringList;
+  date: pchar;
+  endDate: tDateTime;
+begin
+try
+  endDateStr := TStringList.Create;
+  decode(pchar(license), date);
+  license := copy(HexToStr(date), 17, length(date) - 16);
+  if length(license) > 0 then
+  begin
+    split('.', license, endDateStr);
+    endDate := encodeDate(strToInt(endDateStr[2]), strToInt(endDateStr[1]), strToInt(endDateStr[0]));
+    result := CompareDate(Now, endDate);
+  end
+  else result := 1;
+Except
+  result := 1;
+end;
+  endDateStr.Free;
+end;
+
 {controller}
 function init () : pchar; stdcall;
 var
   Registry: TRegistry;
-  license, p, date: pchar;
-//  date: string;
+  license, p: pchar;
+  regLicense: string;
 begin
+try
   Registry := TRegistry.Create;
   Registry.RootKey := hkey_current_user;
   Registry.OpenKey('software\HWD',true);
   if Registry.ValueExists('license') then
   begin
-    //p := StringReplace(Registry.ReadString('license'), #13#10, '', [rfReplaceAll]);
-    p := pchar(Registry.ReadString('license'));
-    p[32] := #0;
-    encode(getHWInfo(), license);
-    if AnsiSameText(string(p), string(license)) then
-      result := pchar('')
+    regLicense := Registry.ReadString('license');
+    if length(regLicense) > 0 then
+    begin
+      if _compareDate(regLicense) = -1 then
+      begin
+        p := pchar(copy(regLicense, 1, 32));
+        encode(getHWInfo(), license);
+        if AnsiSameText(string(p), string(license)) then
+          result := pchar('')
+        else result := getHWInfo()
+      end
+      else result := pchar('Срок действия ключа истек или он не правильного формата. ' + getHWInfo())
+    end
     else result := getHWInfo()
   end
   else result := getHWInfo();
   Registry.CloseKey;
   Registry.Free;
-  //decode(p, p);
-  //result := date;
+Except
+  result := getHWInfo();
 end;
-
-//  encode(license, license);
-//  out := pchar(copy(license, 1, length(license)));
-//  decode(out, out);
+end;
 
 exports init, setLicense;
 

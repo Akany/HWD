@@ -11,10 +11,10 @@ type
     Cript: TButton;
     Edit1: TEdit;
     Edit2: TEdit;
-    Edit3: TEdit;
-    Edit4: TEdit;
     Label1: TLabel;
     Label2: TLabel;
+    Edit5: TEdit;
+    Label3: TLabel;
     procedure CriptClick(Sender: TObject);
   private
     { Private declarations }
@@ -56,15 +56,11 @@ function decode (const source: pchar; var out: pchar): boolean; external 'Rijnda
 
 procedure TForm1.CriptClick(Sender: TObject);
 var
-  license, out: pchar;
+  license: pchar;
 begin
-  license := pchar(Edit1.Text + strToHex(dateToStr(encodeDate(2013,11,7))));
-  edit3.Text := license;
+  license := pchar(Edit1.Text + strToHex(edit5.Text));
   encode(license, license);
   edit2.Text := license;
-  out := pchar(copy(license, 1, length(license)));
-  decode(out, out);
-  edit4.Text := out;
 end;
 
 end.
