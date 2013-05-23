@@ -27,14 +27,14 @@ implementation
 
 {$R *.dfm}
 
-function init () : pchar; stdcall; external 'HardwareInfo.dll';
+function init (const key: pchar) : pchar; external 'HardwareInfo.dll';
 function setLicense (license: Pchar) : Boolean; external 'HardwareInfo.dll';
 
 procedure TForm1.FormCreate(Sender: TObject);
 var
   msg: string;
 begin
-  msg := string(init());
+  msg := string(init('acdE2dD5ea1Ff26B'));
   if (msg <> '') then
   begin
     HWInfo.Clear();

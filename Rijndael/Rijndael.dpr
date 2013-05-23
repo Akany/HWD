@@ -13,51 +13,50 @@ library Rijndael;
 uses
   SysUtils,
   Classes,
-  DECCipher;
+  DECCipher,
+  Dialogs;
 
 {$R *.res}
-function StrToHex(Value: string): string;
+function StrToHex(const Value: string): string;
 var
   I: Integer;
 begin
   Result := '';
-  for I := 1 to Length(Value) do
-    Result := Result + IntToHex(Ord(Value[I]), 2);
+  for I := 1 to length(value) do
+    result := result + IntToHex(Ord(Value[I]), 2);
 end;
 
-function HexToStr(Value: string): string;
+function HexToStr(const Value: string): string;
 var
   I: Integer;
 begin
   Result := '';
-  for I := 1 to Length(Value) do
+  for I := 1 to length(value) do
   begin
     if ((I mod 2) = 1) then
-      Result := Result + Chr(StrToInt('0x'+ Copy(Value, I, 2)));
+    begin
+      result := result + Chr(StrToInt('0x'+ Copy(Value, I, 2)));
+    end;
   end;
 end;
 
 
-function encode (const source: pchar; var out: pchar) : boolean;
+function encode (const source: pchar; var out: pchar; key: pchar) : boolean;
 var
   aes: TCipher_Rijndael;
 begin
   aes := TCipher_Rijndael.Create;
-  aes.Init('acdE2dD5ea1Ff26B');
-  out := pchar(StrToHex(aes.EncodeBinary(HexToStr(string(source)))));
-  //out := pchar(aes.EncodeBinary(source));
+  aes.Init(key);
+  out := pchar(StrToHex(aes.EncodeBinary(HexToStr(source))));
 end;
 
-function decode (const source: pchar; var out: pchar) : boolean;
+function decode (const source: pchar; var out: pchar; key: pchar) : boolean;
 var
   aes: TCipher_Rijndael;
-  ss: string;
 begin
   aes := TCipher_Rijndael.Create;
-  aes.Init('acdE2dD5ea1Ff26B');
-  ss := string(source);
-  out := pchar(StrToHex(aes.DecodeBinary(HexToStr(string(source)))));
-  //out := pchar(aes.DecodeBinary(ss));
+  aes.Init(key);
+  out := pchar(StrToHex(aes.DecodeBinary(HexToStr(source))));
 end;
 
 exports decode, encode;

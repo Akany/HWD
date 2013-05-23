@@ -51,16 +51,19 @@ begin
   end;
 end;
 
-function encode (const source: pchar; var out: pchar): boolean; external 'Rijndael.dll';
-function decode (const source: pchar; var out: pchar): boolean; external 'Rijndael.dll';
+function encode (const source: pchar; var out: pchar; const key: pchar): boolean; external 'Rijndael.dll';
+function decode (const source: pchar; var out: pchar; const key: pchar): boolean; external 'Rijndael.dll';
 
 procedure TForm1.CriptClick(Sender: TObject);
 var
-  license: pchar;
+  license,test: pchar;
 begin
   license := pchar(Edit1.Text + strToHex(edit5.Text));
-  encode(license, license);
+  test := pchar(strToHex(edit5.Text));
+  encode(license, license, 'acdE2dD5ea1Ff26B');
   edit2.Text := license;
+  decode(pchar(edit2.Text), license, 'acdE2dD5ea1Ff26B');
+  license:= test;
 end;
 
 end.

@@ -19,8 +19,8 @@ type
 
 {$R *.res}
 
-function encode (const source: pchar; var out: pchar): boolean; external 'Rijndael.dll';
-function decode (const source: pchar; var out: pchar): boolean; external 'Rijndael.dll';
+function encode (const source: pchar; var out: pchar; key: pchar): boolean; external 'Rijndael.dll';
+function decode (const source: pchar; var out: pchar; key: pchar): boolean; external 'Rijndael.dll';
 
 {Getting computer name}
 function _getComputerName: String;
@@ -80,14 +80,12 @@ begin
 end;
 
 {getting HardWare info}
-function getHWInfo () : PChar;
+function getHWInfo () : string;
 var
   HWInfo: String;
 begin
-  HWInfo := Trim(concatHWInfo(_getComputerName(), getHddId(), _getUserName()));
-  HWInfo := convertHashToPchar(md5String(HWInfo));
-  SetLength(HWInfo, 32);
-  Result := PAnsiChar(HWInfo);
+  Result := Trim(concatHWInfo(_getComputerName(), getHddId(), _getUserName()));
+  Result := convertHashToPchar(md5String(Result));
 end;
 
 {exported function}
@@ -111,7 +109,7 @@ begin
    ListOfStrings.DelimitedText := Str;
 end;
 
-function _compareDate(license: string) : integer;
+function _compareDate(license: string; key: pchar) : integer;
 var
   endDateStr: TStringList;
   date: pchar;
@@ -119,7 +117,7 @@ var
 begin
 try
   endDateStr := TStringList.Create;
-  decode(pchar(license), date);
+  decode(pchar(license), date, key);
   license := copy(HexToStr(date), 17, length(date) - 16);
   if length(license) > 0 then
   begin
@@ -135,11 +133,11 @@ end;
 end;
 
 {controller}
-function init () : pchar; stdcall;
+function init (key: pchar) : pchar;
 var
   Registry: TRegistry;
-  license, p: pchar;
-  regLicense: string;
+  license: pchar;
+  regLicense, p: string;
 begin
 try
   Registry := TRegistry.Create;
@@ -150,23 +148,23 @@ try
     regLicense := Registry.ReadString('license');
     if length(regLicense) > 0 then
     begin
-      if _compareDate(regLicense) = -1 then
+      if _compareDate(regLicense, key) = -1 then
       begin
-        p := pchar(copy(regLicense, 1, 32));
-        encode(getHWInfo(), license);
+        p := copy(regLicense, 1, 32);
+        encode(pchar(getHWInfo()), license, key);
         if AnsiSameText(string(p), string(license)) then
           result := pchar('')
-        else result := getHWInfo()
+        else result := pchar(getHWInfo())
       end
       else result := pchar('Срок действия ключа истек или он не правильного формата. ' + getHWInfo())
     end
-    else result := getHWInfo()
+    else result := pchar(getHWInfo())
   end
-  else result := getHWInfo();
+  else result := pchar(getHWInfo());
   Registry.CloseKey;
   Registry.Free;
 Except
-  result := getHWInfo();
+  result := pchar(getHWInfo());
 end;
 end;
 
